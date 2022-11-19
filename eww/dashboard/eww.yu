@@ -1,0 +1,277 @@
+;Variabels 
+
+;time
+(defpoll time_h :interval "1s" "date '+%H'")
+(defpoll time_m :interval "1s" "date '+%M'")
+(defpoll time_c :interval "1s" "date '+%H:%M'")
+(defpoll time_d	:interval "10h"	"date	'+%d'")
+(defpoll time_y	:interval "10h"	"date	'+%Y'")
+(defpoll volume_percent :interval "3s" "amixer sget Master | grep 'Left:' | awk -F'[][]' '{ print $2 }' | tr -d '%'")
+(defpoll art_w :interval "10s" "~/.config/eww/scripts/getart")
+(defpoll music_artis_alb :interval "1s" "playerctl metadata --format '{{ artist }}'")
+(defpoll music_title :interval "1s" "playerctl metadata --format '{{ title }}'")
+(defpoll pos :interval "1s" "playerctl --player=spotify position")
+
+(defvar btn true)
+(defvar sys_info false)
+(defvar vol false)
+(defvar power false)
+(defvar eww "/bin/eww -c $HOME/.config/eww")
+
+;workspaces
+(deflisten workspace "scripts/workspace.sh")
+(defpoll title :interval "10s" "playerctl metadata --format {{xesam:title}}")
+
+
+;Widgets 
+(defwidget bar []
+    (centerbox :orientation "h"
+        (workspaces)
+        (music)
+        (control)))
+
+
+(defwidget workspaces  []
+    (literal :content workspace))
+
+
+(defwidget music []
+    (box :orientation "h" 
+		(music_middle)))
+
+(defwidget music_middl []
+	(button 	:onclick "scripts/music_pop"
+				:onrightclick "playerctl play-pause"
+		(box 
+			:orientation "h"
+			:space-evenly "true"
+				(image	:path art_w 
+			:image-width 25
+			:image-height 25)
+		(label :text music_title))))
+
+(defwidget music_middle []
+	(eventbox	:onhover "${eww} update btn=true"
+				:onhoverlost "${eww} update btn=false"
+		(box	:orientation "v"
+				:vexpand false 
+				:hexpand false 
+				:valign "center"
+				:space-evenly false 
+		(revealer	:reveal btn
+					:transition "slidedown"
+					:duration "300ms"
+		(box	:orientation "v"
+				:valign "start"
+				(box 	:orientation "h"
+						:spacing 5
+					(button :onclick "playerctl previous " "p")
+					(button :onclick "scripts/music_pop"
+							:onrightclick "playerctl play pause"
+						(image	:path art_w
+								:image-width 25
+								:image-height 25))
+					(button	:onclick "playerctl next" "n"))))
+		(revealer	:reveal "${!btn}"
+					:transition "slideup"
+					:duration "300ms"
+		(box	:orientation "v"
+				:valign "center"
+				(box :orientation "h"
+					 :halign "center"
+					 :spacing 5
+					(image	:path art_w 
+							:image-width 25
+							:image-height 25)
+					(label :text music_title)))))))
+
+
+
+(defwidget control []
+    (box 	:orientation "h"
+			:space-evenly false
+			:halign "end"
+
+		(sys)
+		(power)
+		(time)))
+
+
+(defwidget sys_g [value icon]
+	(circular-progress	:value value
+						:min 0
+						:max 101
+						:thickness 5
+		(button		:onclick "notify-send 'Hello'"
+					:wrap false 
+					:limit-width 2
+					:show_truncated false
+					:tooltip value 
+					icon)))
+
+
+	
+(defwidget vol []
+	(eventbox	:onhover "${eww} update vol=true"
+				:onhoverlost "${eww} update vol=false"
+	(box	:orientation "h"
+			:halign "end"
+			:space-evenly "false"
+			:hexpand "true"
+			:class "volume"
+	(button :onclick "kitty alsamixer" "奄")
+	(revealer	:transition "slideleft"
+				:reveal vol
+				:duration "400ms"
+	(scale	:class "vol_slide"
+			:value volume_percent
+			:cursor "pointer"
+			:orientation "h"
+			:min 0
+			:max 100
+			:onchande "amixer set Master {}")))))
+
+
+(defwidget time []
+	(box	
+		:orientation "h"
+			:halign "end"
+			:hexpand false	
+		(button :onclick "scripts/cal"
+			(box	:orientation "v"
+			(label  :text time_h)
+			(label	:text time_m)))))
+
+(defwidget sys []
+	(eventbox	:onhover "${eww} update sys_info=true"
+				:onhoverlost "${eww} update sys_info=false"
+	(box	:orientation "h"
+			:halign "end"
+			:space-evenly "false"
+			:hexpand true
+	(revealer	:transition "slideleft"
+				:reveal sys_info
+				:duration "600ms"
+		(box	:orientation "h"
+				:space-evenly "false"
+			(sys_g	:value {EWW_RAM.used_mem_perc}	:icon "切")
+			(sys_g	:value {EWW_RAM.used_mem_perc}	:icon "切")	
+			(sys_g	:value {EWW_RAM.used_mem_perc}	:icon "切")
+			(sys_g	:value {EWW_RAM.used_mem_perc}	:icon "切")))
+	
+	(button	:onclick "notify-send 'Hello'" "sys"))))
+
+
+(defwidget power []
+	(eventbox	:onhover "${eww} update power=true"	
+				:onhoverlost "${eww} update power=false" 
+	(box		:orientation "h"
+				:halign "end"					
+				:space-evenly "false" 	 
+				:hexpand "true" 	
+				:class "powermenu"
+	(revealer	:transition "slideleft"				
+				:reveal power			 
+				:duration "600ms"
+	(box		:orientation "h"					
+				:space-evenly "false"
+
+  	(button		:class "btn-reb"					
+	  			:tooltip "Reboot"		 
+				:onclick "reboot"	"")
+
+	(button		:class "btn-quit" 				
+				:tooltip "Logout" 		 
+				:onclick "killall bspwm" "")
+
+	(button		:class "btn-lock" 				
+				:tooltip "Lock Screen"	 
+				:onclick "betterlockscreen -l" "")))
+
+	(button		:class "btn-off"					
+				:tooltip "Shutdown"		 
+				:onclick "shutdown now"	"⏻"))))
+
+
+;Claendaer
+
+(defwidget mycal []
+	(box	:class "cal"	
+			:orientation "v"
+	(box	:class "cal-inner"
+	(calendar
+			:class "cal"	
+			:day time_d
+			:year	time_y))))
+
+(defwindow cal
+	:geometry	(geometry	
+					:x "-15px"
+					:y "69px"
+					:anchor "top right"
+					:width 300
+					:height 200)
+(mycal))
+
+
+;Music POP UP
+
+(defwidget music_player[]
+	(box 	:class "img_pmain"
+			:orientation "v"
+			:space-evenly false
+		(box 	:class "img_txt"
+				:orientation "h"
+			(box	:class "imgbox"
+					:orientation "h"
+					:space-evenly false
+				(image	:path art_w 
+					:image-width 150
+					:image-height 150))
+			(box	
+					:class "labelbox"
+					:orientation "v"
+					:space-evenly true
+				(label	:text music_artis_alb)
+				(label	:text music_title)
+				(box	:class "music_p_btn"
+						:orientation "h"
+						:spacing 25
+						:halign "center"
+						:hexpand true
+					(button :onclick "playerctl previous" "")
+					(button :onclick "playerctl play-pause" "")
+					(button :onclick "playerctl next" "")
+					)))
+		(box	:class "slider_bx"
+				:orientation "h"
+			(scale :min 0
+					:max 100
+					:value pos
+					:orientation "h"
+					:onchange "scripts/seek --seek {}"))))
+
+
+(defwindow music_pop
+	:wm-ignore true
+	:staking "fg"
+	:monitor 0
+	:windowtype "normal"
+	:geometry (geometry 
+				:x "0%"
+				:y "65px"
+				:width 500
+				:height 220
+				:anchor "top center")
+	(music_player))
+
+;bar
+(defwindow bar
+    :wm-ignore false
+    :staking "bg" 
+    :monitor 0
+    :windowtype "dock"
+    :geometry (geometry :x "0%" :y "10px" :width 1890 :height "50px" :anchor "top center")
+    :reserve (struts :distance "55" :side "top") 
+    (bar))
+

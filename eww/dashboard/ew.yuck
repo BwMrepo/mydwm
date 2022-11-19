@@ -1,0 +1,316 @@
+
+;Varibales----------------------------------------------------------------
+
+;Static 
+(defvar vol_reveal false)
+(defvar music_btn false)
+(defvar power false)
+(defvar ram false)
+(defvar eww "/bin/eww -c $HOME/.config/eww") ;where eww is stored /bin
+;Dynamic 
+(defpoll art_w :interval "10s" "~/.config/eww/scripts/getart")
+(defpoll music_title :interval "1s" "playerctl metadata --format '{{ title }}'")
+(defpoll music_artis_alb :interval "1s" "playerctl metadata --format '{{ artist }}'")
+(defpoll volume_percent :interval "3s" "amixer sget Master | grep 'Left:' | awk -F'[][]' '{ print $2 }' | tr -d '%'")
+(defpoll time_h :interval "1s" "date '+%H'")
+(defpoll time_m :interval "1s" "date '+%M'")
+(defpoll time_c :interval "1s" "date '+%H:%M'")
+(defpoll time_d	:interval "10h"	"date	'+%d'")
+(defpoll time_y	:interval "10h"	"date	'+%Y'")
+(defpoll pos :interval "1s" "playerctl --player=spotify position")
+(defpoll user :interval	"10h" "whoami")
+;Listen 
+(deflisten workspace "scripts/workspaces ")
+(deflisten read "scripts/read")
+
+;Widgets------------------------------------------------------------------
+
+;Bar
+(defwidget bar []
+    (centerbox  :orientation "h"
+        (workspaces)
+        (music)
+        (control)))
+
+;Workspaces 
+(defwidget workspaces []
+    (literal :content workspace))
+
+;Music
+(defwidget music []
+    (eventbox   :onhover "${eww} update music_btn=true"
+                :onhoverlost "${eww} update music_btn=false"
+        (box	:class "music_outer"
+                :orientation "v"
+				:vexpand false 
+				:hexpand false 
+				:valign "center"
+				:space-evenly false 
+		(revealer	:reveal music_btn
+					:transition "slidedown"
+					:duration "300ms"
+		(box	:class "music_btn_outer"
+                :orientation "v"
+				:valign "start"
+				(box 	:class "music_btn_inner"
+                        :orientation "h"
+						:spacing 5
+                        :space-evenly false
+                        :halign "center"
+					(button :class "music_btn_prev"
+                            :onclick "playerctl previous " "玲")
+					(button :onclick "music_btn_play"
+                            :onclick "scripts/music_pop"
+							:onrightclick "playerctl play-pause"
+                        (box    :class "music_img_btn" 
+                                :orientation "h"  
+                                :style "background-image: url('${art_w}');"))
+					(button	:class "music_btn_next" 
+                            :onclick "playerctl next" "怜"))))
+		(revealer	:reveal "${!music_btn}"
+					:transition "slideup"
+					:duration "300ms"
+		(box	:class "music_title_outer"
+                :orientation "v"
+				:valign "center"
+				(box    :class "music_title_inner"
+                        :orientation "h"
+					    :halign "center"
+                        :space-evenly false
+                        :spaceing 5
+                    (box    :class "music_img_title" 
+                            :orientation "h"  
+                            :style "background-image: url('${art_w}');")
+					(label  :class "music_title_label"
+                            :text music_title)))))))
+
+;Control panel
+(defwidget control []
+    (box    :orientation "h"
+            :space-evenly true
+            :halign "end"
+	
+	
+	(sys_g	:value {EWW_RAM.used_mem_perc} :class "ram")
+	(sys_g	:value {EWW_CPU.avg} :class "cpu")
+	(vol)
+	(power)
+	(time)))
+
+(defwidget vol []
+	(box 	:class "vol_box_btn"
+			:orientation "h"
+		(button :onclick "scripts/vol_pop" :class "vol_btn" "墳")))
+
+(defwidget vol_slider []
+	(box	:class "vol_main"
+			:orientation "h"
+		(box	:orientation "v"
+				:class "lab_box"
+			(label :text "墳"	:class "vol")
+			(label :text ""	:class "mic"))
+	(box	:orientation "v"
+			:class "vol_sliderbx"	
+		(scale	:value volume_percent
+				:orientation "h"
+				:tooltip "${volume_percent}%"
+				:max 101
+				:min 0
+				:onchange "amixer sset Master {}%" )
+		(scale  :value volume_percent
+				:orientation "h"
+				:tooltip "${volume_percent}%"
+				:max 101
+				:min 0
+				:onchange "amixer sset Master {}%" ))))
+
+
+
+
+;Time and Calander stuff
+(defwidget time []
+	(box	:class "time_outer"
+            :orientation "h"
+			:halign "end"
+			:hexpand false	
+		(button :class "time_btn"
+                :onclick "scripts/cal"
+			(box	:orientation "v"
+			(label  :class "time_label_hour"
+                    :text time_h)		
+            (label	:class "time_label_min"
+                    :text time_m)))))
+(defwidget mycal []
+	(box	:class "mycal"	
+			:orientation "v"
+	(box	:class "cal-inner"
+	(calendar
+			:class "cal_inner"	
+			:day time_d
+			:year	time_y))))
+
+
+
+(defwidget sys_g [value class]
+(box	:orientation "h"
+		:class "graph"
+	(circular-progress	
+						:class class
+						:value value
+						:min 0
+						:max 101
+						:thickness 3
+			(button		:onclick "notify-send 'Hello'"
+						:wrap false 
+						:limit-width 2
+						:show_truncated false
+						:tooltip value 
+						""))))
+;powermenu launcher
+(defwidget power []
+	(box	:class "power_outer"
+			:orientation "h"
+			:hexpand false
+		(button :class "power_btn"
+				:onclick "scripts/powermenu"
+				:onrightclick "poweroff" "")))
+
+(defwidget power_menu []
+	(box	:class "power_outer"
+			:orientation "v"
+			:space-evenly false
+		(label	:text "Goodbye ${user} ?"
+				:class "power_m_label")
+		(box	:class "power_inner"
+				:orientation "h"
+				(button :class "powermenu_btn"
+						:onclick "poweroff" "襤")
+				(button :class "powermenu_btn"
+						:onclick "reboot" "")
+				(button :class "powermenu_btn"
+						:onclick "i3lock" "")
+				(button :class "powermenu_btn"
+						:onclick "killall bspwm" ""))))
+
+
+
+(defwidget music_playerII []
+	(box	:class "musp_main"
+			:orientation "v"
+			:space-evenly false
+		(box	:class "musp_art"
+				:orientation "h"
+				:style "background-image: url('${art_w}');")
+		(box	:class "musp_label"
+				:orientation "v"
+				:hexpand false
+				(label 	:class "musp_title"
+						:text music_title
+						:limit-width 20)
+				(label :text music_artis_alb
+						:class "musp_artist"
+						:limit-width 20))
+		(box	:class "slider_bx"
+				:orientation "h"
+			(scale  :class "mus_bar"
+					:min 0
+					:max 100
+					:value pos
+					:orientation "h"
+					:onchange "scripts/seek --seek {}"))
+		(box	:class "musp_btn"
+				:orientation "h"
+				(button :onclick "playerctl previous" "玲")
+				(button :onclick "playerctl play-pause" "")
+				(button :onclick "playerctl next" "怜"))))
+
+(defwidget websearch_w []
+	(box :orientation "h" :class "websearchbox_outer"
+		(label :class "search-icon" :text "")
+(input :class "seach-bar" :onaccept "~/.config/eww/dashboard/scripts/websearch {}")
+	))
+
+(defwidget searchapps []
+    (box :orientation "v" :space-evenly false :class "search-win" :halign "top" :valign "top"
+      (box :orientation "h" :space-evenly false :class "searchapps-bar" :halign "top" :valign "top"
+        (label :class "search-label" :text "")
+        (input :class "search-bar" :onchange "~/.config/eww/dashboard/scripts/websearch {}"))))
+
+(defwindow websearch
+		:wm-ignore true
+		:stacking "fg"
+		:focusable true
+		:monitor 0
+		:windowtype "dock"
+		:geometry (geometry 
+					:x "0px"
+					:y "802px"
+					:width 1920
+					:height 158
+					:anchor "top left")
+		(searchapps))
+
+(defwindow searchapps
+	:wm-ignore false
+  :monitor 0
+  :windowtype "normal"
+  :geometry (geometry :x "40%"
+                      :y "30%"
+                      :width "20%"
+                      :height "50%"
+                      :anchor "top left")
+(searchapps))
+
+;Windows-------------------------------------------------------------------
+(defwindow music_pop
+	:wm-ignore true
+	:staking "fg"
+	:monitor 0
+	:windowtype "normal"
+	:geometry (geometry 
+				:x "0%"
+				:y "69px"
+				:width 260
+				:height 400
+				:anchor "top center")
+	(music_playerII))
+
+(defwindow bar
+    :wm-ignore false 
+    :stacking "fg"
+    :monitor 0
+    :geometry (geometry :x "0%" :y "10px" :width 1890 :height "50px" :anchor "top center")
+    :reserve (struts :distance "55" :side "top") 
+    (bar))
+
+(defwindow powermenu
+		:windowtype "normal"
+		:wm-ignore true 
+		:geometry	(geometry
+		:anchor "top right"	
+		:x "-15px"
+		:y "69"
+		:width 310
+		:height 120)
+	(power_menu))
+
+(defwindow volmenu
+	:windowtype "normal"
+	:wm-ignore true 
+	:geometry	(geometry
+	:anchor "top right"	
+	:x "-15px"
+	:y "69"
+	:width 310
+	:height 150)
+(vol_slider))
+
+(defwindow cal
+	:geometry	(geometry	
+	:x "-15px"
+	:y "69px"
+	:anchor "top right"
+	:width 310
+	:height 200)
+		(mycal))
+
